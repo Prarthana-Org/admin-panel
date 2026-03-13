@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 export default function Temples() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: '', thumbnail_url: '', latitude: '', longitude: '' });
 
   useEffect(() => {
@@ -20,18 +21,28 @@ export default function Temples() {
 
   const create = async (e) => {
     e.preventDefault();
-    await supabase.from('temples').insert({
-      name: form.name,
-      thumbnail_url: form.thumbnail_url || null,
-      latitude: form.latitude ? parseFloat(form.latitude) : null,
-      longitude: form.longitude ? parseFloat(form.longitude) : null,
-    });
-    setForm({ name: '', thumbnail_url: '', latitude: '', longitude: '' });
-    const { data } = await supabase
+    setCreating(true);
+    const { data: inserted, error } = await supabase
       .from('temples')
-      .select('id,name,latitude,longitude,thumbnail_url')
-      .order('created_at', { ascending: false });
-    setList(data || []);
+      .insert({
+        name: form.name,
+        thumbnail_url: form.thumbnail_url || null,
+        latitude: form.latitude ? parseFloat(form.latitude) : null,
+        longitude: form.longitude ? parseFloat(form.longitude) : null,
+      })
+      .select()
+      .single();
+    setCreating(false);
+    if (!error && inserted) {
+      setForm({ name: '', thumbnail_url: '', latitude: '', longitude: '' });
+      setList((prev) => [inserted, ...prev]);
+    }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm('Delete this temple?')) return;
+    await supabase.from('temples').delete().eq('id', id);
+    setList((prev) => prev.filter((t) => t.id !== id));
   };
 
   return (
@@ -80,7 +91,9 @@ export default function Temples() {
                 />
               </div>
             </div>
-            <button type="submit" className="btn btn-primary">Create temple</button>
+            <button type="submit" className="btn btn-primary" disabled={creating}>
+              {creating ? 'Creating…' : 'Create temple'}
+            </button>
           </form>
         </section>
 
@@ -99,6 +112,7 @@ export default function Temples() {
                     <th>Name</th>
                     <th>Lat</th>
                     <th>Lng</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -108,6 +122,11 @@ export default function Temples() {
                       <td>{t.name}</td>
                       <td className="mono">{t.latitude ?? '—'}</td>
                       <td className="mono">{t.longitude ?? '—'}</td>
+                      <td>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(t.id)}>
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

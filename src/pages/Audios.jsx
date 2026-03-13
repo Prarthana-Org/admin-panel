@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 export default function Audios() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', artist: '', audio_url: '', image_url: '' });
 
   useEffect(() => {
@@ -20,18 +21,28 @@ export default function Audios() {
 
   const create = async (e) => {
     e.preventDefault();
-    await supabase.from('audios').insert({
-      title: form.title,
-      artist: form.artist,
-      audio_url: form.audio_url,
-      image_url: form.image_url || null,
-    });
-    setForm({ title: '', artist: '', audio_url: '', image_url: '' });
-    const { data } = await supabase
+    setCreating(true);
+    const { data: inserted, error } = await supabase
       .from('audios')
-      .select('id,title,artist,audio_url,image_url')
-      .order('created_at', { ascending: false });
-    setList(data || []);
+      .insert({
+        title: form.title,
+        artist: form.artist,
+        audio_url: form.audio_url,
+        image_url: form.image_url || null,
+      })
+      .select()
+      .single();
+    setCreating(false);
+    if (!error && inserted) {
+      setForm({ title: '', artist: '', audio_url: '', image_url: '' });
+      setList((prev) => [inserted, ...prev]);
+    }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm('Delete this audio?')) return;
+    await supabase.from('audios').delete().eq('id', id);
+    setList((prev) => prev.filter((a) => a.id !== id));
   };
 
   return (
@@ -72,7 +83,9 @@ export default function Audios() {
               onChange={(e) => setForm({ ...form, image_url: e.target.value })}
               placeholder="https://..."
             />
-            <button type="submit" className="btn btn-primary">Create audio</button>
+            <button type="submit" className="btn btn-primary" disabled={creating}>
+              {creating ? 'Creating…' : 'Create audio'}
+            </button>
           </form>
         </section>
 
@@ -90,6 +103,7 @@ export default function Audios() {
                     <th>ID</th>
                     <th>Title</th>
                     <th>Artist</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -98,6 +112,11 @@ export default function Audios() {
                       <td className="mono">{a.id}</td>
                       <td>{a.title}</td>
                       <td>{a.artist}</td>
+                      <td>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(a.id)}>
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

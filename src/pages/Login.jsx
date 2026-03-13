@@ -7,7 +7,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
 
   const submit = async (e) => {
@@ -15,28 +14,14 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      if (isSignUp) {
-        const { data, error: authError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (authError) {
-          setError(authError.message);
-        } else if (data.session) {
-          navigate('/', { replace: true });
-        } else {
-          setError('Check your email to confirm, or try signing in.');
-        }
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (authError || !data.session) {
+        setError(authError?.message || 'Invalid credentials');
       } else {
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (authError || !data.session) {
-          setError(authError?.message || 'Invalid credentials');
-        } else {
-          navigate('/', { replace: true });
-        }
+        navigate('/', { replace: true });
       }
     } catch (err) {
       setError(err?.message || 'Network error');
@@ -69,7 +54,7 @@ export default function Login() {
             Prarthana Admin
           </h1>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            {isSignUp ? 'Create your first admin account' : 'Sign in to manage content'}
+            Sign in to manage content
           </p>
         </div>
         <form onSubmit={submit}>
@@ -97,51 +82,8 @@ export default function Login() {
           </div>
           {error && <p className="error-msg">{error}</p>}
           <button type="submit" disabled={loading} style={{ marginTop: '0.5rem' }}>
-            {loading
-              ? isSignUp ? 'Creating account…' : 'Signing in…'
-              : isSignUp ? 'Create account' : 'Sign in'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
-          <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.875rem' }}>
-            {isSignUp ? (
-              <>
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(false)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--primary)',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    padding: 0,
-                    font: 'inherit',
-                  }}
-                >
-                  Sign in
-                </button>
-              </>
-            ) : (
-              <>
-                No account yet?{' '}
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(true)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--primary)',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    padding: 0,
-                    font: 'inherit',
-                  }}
-                >
-                  Create account
-                </button>
-              </>
-            )}
-          </p>
         </form>
       </div>
     </div>

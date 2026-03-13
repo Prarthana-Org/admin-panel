@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 export default function Banners() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', image_url: '', action_url: '' });
 
   useEffect(() => {
@@ -20,17 +21,27 @@ export default function Banners() {
 
   const create = async (e) => {
     e.preventDefault();
-    await supabase.from('banners').insert({
-      title: form.title,
-      image_url: form.image_url,
-      action_url: form.action_url || null,
-    });
-    setForm({ title: '', image_url: '', action_url: '' });
-    const { data } = await supabase
+    setCreating(true);
+    const { data: inserted, error } = await supabase
       .from('banners')
-      .select('id,title,image_url,action_url')
-      .order('display_order', { ascending: true });
-    setList(data || []);
+      .insert({
+        title: form.title,
+        image_url: form.image_url,
+        action_url: form.action_url || null,
+      })
+      .select()
+      .single();
+    setCreating(false);
+    if (!error && inserted) {
+      setForm({ title: '', image_url: '', action_url: '' });
+      setList((prev) => [inserted, ...prev].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)));
+    }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm('Delete this banner?')) return;
+    await supabase.from('banners').delete().eq('id', id);
+    setList((prev) => prev.filter((b) => b.id !== id));
   };
 
   return (
@@ -64,7 +75,9 @@ export default function Banners() {
               onChange={(e) => setForm({ ...form, action_url: e.target.value })}
               placeholder="https://www.youtube.com/..."
             />
-            <button type="submit" className="btn btn-primary">Create banner</button>
+            <button type="submit" className="btn btn-primary" disabled={creating}>
+              {creating ? 'Creating…' : 'Create banner'}
+            </button>
           </form>
         </section>
 
@@ -82,6 +95,7 @@ export default function Banners() {
                     <th>ID</th>
                     <th>Title</th>
                     <th>Preview</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -97,6 +111,11 @@ export default function Banners() {
                         ) : (
                           '—'
                         )}
+                      </td>
+                      <td>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(b.id)}>
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}

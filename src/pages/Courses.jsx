@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient';
 export default function Courses() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -27,16 +28,29 @@ export default function Courses() {
 
   const create = async (e) => {
     e.preventDefault();
-    await supabase.from('courses').insert({
-      title: form.title,
-      description: form.description || null,
-      author_name: form.author_name,
-      course_type: form.course_type,
-      thumbnail_url: form.thumbnail_url || null,
-    });
-    setForm({ title: '', description: '', author_name: '', course_type: 'VIDEO', thumbnail_url: '' });
-    const { data } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
-    setList(data || []);
+    setCreating(true);
+    const { data: inserted, error } = await supabase
+      .from('courses')
+      .insert({
+        title: form.title,
+        description: form.description || null,
+        author_name: form.author_name,
+        course_type: form.course_type,
+        thumbnail_url: form.thumbnail_url || null,
+      })
+      .select()
+      .single();
+    setCreating(false);
+    if (!error && inserted) {
+      setForm({ title: '', description: '', author_name: '', course_type: 'VIDEO', thumbnail_url: '' });
+      setList((prev) => [inserted, ...prev]);
+    }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm('Delete this course? Videos in it will also be deleted.')) return;
+    await supabase.from('courses').delete().eq('id', id);
+    setList((prev) => prev.filter((c) => c.id !== id));
   };
 
   return (
@@ -87,7 +101,9 @@ export default function Courses() {
               onChange={(e) => setForm({ ...form, thumbnail_url: e.target.value })}
               placeholder="https://..."
             />
-            <button type="submit" className="btn btn-primary">Create course</button>
+            <button type="submit" className="btn btn-primary" disabled={creating}>
+              {creating ? 'Creating…' : 'Create course'}
+            </button>
           </form>
         </section>
 
@@ -106,6 +122,7 @@ export default function Courses() {
                     <th>Title</th>
                     <th>Author</th>
                     <th>Type</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -115,6 +132,11 @@ export default function Courses() {
                       <td>{c.title}</td>
                       <td>{c.author_name}</td>
                       <td><span className="badge">{c.course_type}</span></td>
+                      <td>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(c.id)}>
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
