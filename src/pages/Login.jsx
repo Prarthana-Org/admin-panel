@@ -38,7 +38,7 @@ export default function Login() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '2rem',
-        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)',
+        background: 'linear-gradient(135deg, #FFF3E0 0%, #FFF8F0 50%, #FFE4CC 100%)',
       }}
     >
       <div

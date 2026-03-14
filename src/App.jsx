@@ -14,8 +14,8 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: '1.5rem' }}>Loading…</span>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+        <span style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>Loading…</span>
       </div>
     );
   }
