@@ -31,7 +31,10 @@ export default function Layout() {
         <NavLink to="/banners">Banners</NavLink>
         <NavLink to="/temples">Temples</NavLink>
         <NavLink to="/audios">Audios</NavLink>
+        <NavLink to="/shorts">Shorts</NavLink>
+        <NavLink to="/live-streams">Live Streams</NavLink>
         <NavLink to="/users">Users</NavLink>
+        <NavLink to="/notifications">Notifications</NavLink>
         <span className="spacer" />
         <button 
           type="button" 

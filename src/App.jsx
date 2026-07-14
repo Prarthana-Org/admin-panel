@@ -8,6 +8,9 @@ import Banners from './pages/Banners';
 import Temples from './pages/Temples';
 import Audios from './pages/Audios';
 import Users from './pages/Users';
+import Shorts from './pages/Shorts';
+import LiveStreams from './pages/LiveStreams';
+import Notifications from './pages/Notifications';
 
 function App() {
   const { session, loading } = useAuth();
@@ -32,7 +35,10 @@ function App() {
           <Route path="banners" element={<Banners />} />
           <Route path="temples" element={<Temples />} />
           <Route path="audios" element={<Audios />} />
+          <Route path="shorts" element={<Shorts />} />
+          <Route path="live-streams" element={<LiveStreams />} />
           <Route path="users" element={<Users />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
