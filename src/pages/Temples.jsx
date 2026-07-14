@@ -1,23 +1,38 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
+const LANGUAGES = [
+  { value: 'en_US', label: 'English' },
+  { value: 'hi_IN', label: 'हिन्दी' },
+  { value: 'ru_RU', label: 'Русский' },
+  { value: 'ta_IN', label: 'தமிழ்' },
+  { value: 'te_IN', label: 'తెలుగు' },
+  { value: 'bn_IN', label: 'বাংলা' },
+  { value: 'gu_IN', label: 'ગુજરાતી' },
+];
+
 export default function Temples() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: '', thumbnail_url: '', latitude: '', longitude: '' });
+  const [languageFilter, setLanguageFilter] = useState('');
+  const [form, setForm] = useState({ name: '', thumbnail_url: '', latitude: '', longitude: '', language: 'en_US' });
+
+  const loadTemples = async () => {
+    setLoading(true);
+    let q = supabase
+      .from('temples')
+      .select('id,name,latitude,longitude,thumbnail_url,language')
+      .order('created_at', { ascending: false });
+    if (languageFilter) q = q.eq('language', languageFilter);
+    const { data, error } = await q;
+    if (!error) setList(data || []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const load = async () => {
-      const { data, error } = await supabase
-        .from('temples')
-        .select('id,name,latitude,longitude,thumbnail_url')
-        .order('created_at', { ascending: false });
-      if (!error) setList(data || []);
-      setLoading(false);
-    };
-    load();
-  }, []);
+    loadTemples();
+  }, [languageFilter]);
 
   const create = async (e) => {
     e.preventDefault();
@@ -29,12 +44,13 @@ export default function Temples() {
         thumbnail_url: form.thumbnail_url || null,
         latitude: form.latitude ? parseFloat(form.latitude) : null,
         longitude: form.longitude ? parseFloat(form.longitude) : null,
+        language: form.language || 'en_US',
       })
       .select()
       .single();
     setCreating(false);
     if (!error && inserted) {
-      setForm({ name: '', thumbnail_url: '', latitude: '', longitude: '' });
+      setForm({ name: '', thumbnail_url: '', latitude: '', longitude: '', language: 'en_US' });
       setList((prev) => [inserted, ...prev]);
     }
   };
@@ -91,14 +107,38 @@ export default function Temples() {
                 />
               </div>
             </div>
-            <button type="submit" className="btn btn-primary" disabled={creating}>
+            <label>Language</label>
+            <select
+              value={form.language}
+              onChange={(e) => setForm({ ...form, language: e.target.value })}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>{l.label}</option>
+              ))}
+            </select>
+            <button type="submit" className="btn btn-primary" disabled={creating} style={{ marginTop: '1rem' }}>
               {creating ? 'Creating…' : 'Create temple'}
             </button>
           </form>
         </section>
 
         <section className="card">
-          <h2 className="card-title">All temples</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 className="card-title" style={{ margin: 0 }}>All temples</h2>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Filter by language:</span>
+              <select
+                value={languageFilter}
+                onChange={(e) => setLanguageFilter(e.target.value)}
+                style={{ padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+              >
+                <option value="">All languages</option>
+                {LANGUAGES.map((l) => (
+                  <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
           {loading ? (
             <div className="loading">Loading…</div>
           ) : list.length === 0 ? (
@@ -110,6 +150,7 @@ export default function Temples() {
                   <tr>
                     <th>ID</th>
                     <th>Name</th>
+                    <th>Language</th>
                     <th>Lat</th>
                     <th>Lng</th>
                     <th></th>
@@ -120,6 +161,7 @@ export default function Temples() {
                     <tr key={t.id}>
                       <td className="mono">{t.id}</td>
                       <td>{t.name}</td>
+                      <td><span className="badge">{LANGUAGES.find((l) => l.value === (t.language || 'en_US'))?.label || t.language || 'en'}</span></td>
                       <td className="mono">{t.latitude ?? '—'}</td>
                       <td className="mono">{t.longitude ?? '—'}</td>
                       <td>

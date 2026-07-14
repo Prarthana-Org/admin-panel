@@ -42,9 +42,13 @@ export default function Dashboard() {
       <div className="dashboard-grid">
         {links.map((item) => (
           <Link key={item.to} to={item.to} className="dashboard-card">
-            <span style={{ fontSize: '1.75rem' }}>{item.emoji}</span>
-            <h3>{item.title}</h3>
-            <p>{item.desc}</p>
+            <div className="dashboard-card-icon">
+              {item.emoji}
+            </div>
+            <div>
+              <h3>{item.title}</h3>
+              <p>{item.desc}</p>
+            </div>
           </Link>
         ))}
       </div>

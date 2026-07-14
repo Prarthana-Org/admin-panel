@@ -6,6 +6,16 @@ const COVER_BUCKET = 'audio-covers';
 const MAX_AUDIO_MB = 50;
 const MAX_COVER_MB = 5;
 
+const LANGUAGES = [
+  { value: 'en_US', label: 'English' },
+  { value: 'hi_IN', label: 'हिन्दी' },
+  { value: 'ru_RU', label: 'Русский' },
+  { value: 'ta_IN', label: 'தமிழ்' },
+  { value: 'te_IN', label: 'తెలుగు' },
+  { value: 'bn_IN', label: 'বাংলা' },
+  { value: 'gu_IN', label: 'ગુજરાતી' },
+];
+
 function generatePath() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
@@ -14,24 +24,29 @@ export default function Audios() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [languageFilter, setLanguageFilter] = useState('');
   const [uploadError, setUploadError] = useState('');
-  const [form, setForm] = useState({ title: '', artist: '', image_url: '' });
+  const [form, setForm] = useState({ title: '', artist: '', image_url: '', language: 'en_US' });
   const [audioFile, setAudioFile] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
   const audioInputRef = useRef(null);
   const coverInputRef = useRef(null);
 
+  const loadAudios = async () => {
+    setLoading(true);
+    let q = supabase
+      .from('audios')
+      .select('id,title,artist,audio_url,image_url,language')
+      .order('created_at', { ascending: false });
+    if (languageFilter) q = q.eq('language', languageFilter);
+    const { data, error } = await q;
+    if (!error) setList(data || []);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const load = async () => {
-      const { data, error } = await supabase
-        .from('audios')
-        .select('id,title,artist,audio_url,image_url')
-        .order('created_at', { ascending: false });
-      if (!error) setList(data || []);
-      setLoading(false);
-    };
-    load();
-  }, []);
+    loadAudios();
+  }, [languageFilter]);
 
   const uploadFile = async (bucket, path, file) => {
     const { error } = await supabase.storage.from(bucket).upload(path, file, {
@@ -79,12 +94,13 @@ export default function Audios() {
           artist: form.artist,
           audio_url: audioUrl,
           image_url: imageUrl,
+          language: form.language || 'en_US',
         })
         .select()
         .single();
 
       if (!error && inserted) {
-        setForm({ title: '', artist: '', image_url: '' });
+        setForm({ title: '', artist: '', image_url: '', language: 'en_US' });
         setAudioFile(null);
         setCoverFile(null);
         if (audioInputRef.current) audioInputRef.current.value = '';
@@ -154,15 +170,39 @@ export default function Audios() {
               onChange={(e) => setForm({ ...form, image_url: e.target.value })}
               placeholder="https://... (optional fallback)"
             />
+            <label>Language</label>
+            <select
+              value={form.language}
+              onChange={(e) => setForm({ ...form, language: e.target.value })}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>{l.label}</option>
+              ))}
+            </select>
             {uploadError && <p className="error-msg">{uploadError}</p>}
-            <button type="submit" className="btn btn-primary" disabled={creating}>
+            <button type="submit" className="btn btn-primary" disabled={creating} style={{ marginTop: '1rem' }}>
               {creating ? 'Uploading…' : 'Create audio'}
             </button>
           </form>
         </section>
 
         <section className="card">
-          <h2 className="card-title">All audios</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 className="card-title" style={{ margin: 0 }}>All audios</h2>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Filter by language:</span>
+              <select
+                value={languageFilter}
+                onChange={(e) => setLanguageFilter(e.target.value)}
+                style={{ padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+              >
+                <option value="">All languages</option>
+                {LANGUAGES.map((l) => (
+                  <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
           {loading ? (
             <div className="loading">Loading…</div>
           ) : list.length === 0 ? (
@@ -174,6 +214,7 @@ export default function Audios() {
                   <tr>
                     <th>ID</th>
                     <th>Title</th>
+                    <th>Language</th>
                     <th>Artist</th>
                     <th></th>
                   </tr>
@@ -183,6 +224,7 @@ export default function Audios() {
                     <tr key={a.id}>
                       <td className="mono">{a.id}</td>
                       <td>{a.title}</td>
+                      <td><span className="badge">{LANGUAGES.find((l) => l.value === (a.language || 'en_US'))?.label || a.language || 'en'}</span></td>
                       <td>{a.artist}</td>
                       <td>
                         <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(a.id)}>

@@ -12,6 +12,7 @@ export default function Login() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    
     setLoading(true);
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -21,7 +22,19 @@ export default function Login() {
       if (authError || !data.session) {
         setError(authError?.message || 'Invalid credentials');
       } else {
-        navigate('/', { replace: true });
+        // Check if the user is an admin
+        const { data: userProfile, error: profileError } = await supabase
+          .from('app_users')
+          .select('role')
+          .eq('auth_user_id', data.user.id)
+          .single();
+        
+        if (profileError || userProfile?.role !== 'admin') {
+          await supabase.auth.signOut();
+          setError('Access Denied. You do not have admin privileges.');
+        } else {
+          window.location.href = '/';
+        }
       }
     } catch (err) {
       setError(err?.message || 'Network error');
@@ -38,23 +51,38 @@ export default function Login() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '2rem',
-        background: 'linear-gradient(135deg, #FFF3E0 0%, #FFF8F0 50%, #FFE4CC 100%)',
+        backgroundImage: 'url(/temple1.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        position: 'relative'
       }}
     >
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(13, 5, 0, 0.65)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}></div>
       <div
         className="card"
         style={{
-          maxWidth: 400,
+          maxWidth: 420,
           width: '100%',
+          position: 'relative',
+          zIndex: 1,
+          border: '1px solid rgba(255, 179, 0, 0.2)',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
+          background: 'rgba(20, 10, 0, 0.4)',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <img src="/prarthana_logo.png" alt="Prarthana" style={{ height: 56, marginBottom: '0.5rem' }} />
-          <h1 style={{ margin: '0.5rem 0 0.25rem 0', fontSize: '1.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <img src="/prarthana_logo.png" alt="Prarthana" style={{ height: 64, marginBottom: '1rem', filter: 'drop-shadow(0 0 8px rgba(255,179,0,0.5))' }} />
+          <h1 style={{ margin: '0 0 0.5rem 0', fontSize: '1.75rem', background: 'linear-gradient(135deg, #FFD700, #FFB300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Prarthana Admin
           </h1>
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Sign in to manage content
+          <p style={{ margin: 0, color: 'var(--text-hint)', fontSize: '0.95rem' }}>
+            Sign in to manage spiritual content
           </p>
         </div>
         <form onSubmit={submit}>

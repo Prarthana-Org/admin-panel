@@ -11,7 +11,7 @@ export default function Users() {
       setError('');
       const { data, error: err } = await supabase
         .from('app_users')
-        .select('id, name, phone, email, language, country, is_pro, created_at')
+        .select('id, name, phone, email, language, country, is_pro, created_at, email_verified')
         .order('created_at', { ascending: false });
       if (err) {
         setError(err.message);
@@ -62,7 +62,32 @@ export default function Users() {
                   <tr key={u.id}>
                     <td>{u.name || '—'}</td>
                     <td className="mono">{u.phone || '—'}</td>
-                    <td>{u.email || '—'}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{u.email || '—'}</span>
+                        {u.email && (
+                          u.email_verified ? (
+                            <span className="badge-verified" title="Email Verified" style={{
+                              backgroundColor: '#DEF7EC',
+                              color: '#03543F',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                            }}>Verified</span>
+                          ) : (
+                            <span className="badge-unverified" title="Pending Verification" style={{
+                              backgroundColor: '#FEF08A',
+                              color: '#713F12',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                            }}>Pending</span>
+                          )
+                        )}
+                      </div>
+                    </td>
                     <td>{u.language || '—'}</td>
                     <td>{u.country || '—'}</td>
                     <td>{u.is_pro ? <span className="badge">Pro</span> : '—'}</td>

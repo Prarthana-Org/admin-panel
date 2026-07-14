@@ -1,5 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
+
+const VIDEO_BUCKET = 'videos';
+const THUMBNAIL_BUCKET = 'thumbnails';
+const MAX_VIDEO_MB = 500;
+const MAX_THUMBNAIL_MB = 5;
+
+function generatePath() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
 
 const LANGUAGES = [
   { value: 'en_US', label: 'English' },
@@ -20,6 +29,14 @@ export default function Courses() {
   const [videos, setVideos] = useState([]);
   const [videosLoading, setVideosLoading] = useState(false);
   const [videoCreating, setVideoCreating] = useState(false);
+  const [videoUploadError, setVideoUploadError] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
+  const thumbnailInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+
   const [videoForm, setVideoForm] = useState({ title: '', video_url: '', episodenumber: 1 });
   const [form, setForm] = useState({
     title: '',
@@ -60,25 +77,57 @@ export default function Courses() {
     else setVideos([]);
   }, [selectedCourseId]);
 
+  const uploadFile = async (bucket, path, file) => {
+    const { error } = await supabase.storage.from(bucket).upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
   const create = async (e) => {
     e.preventDefault();
+    setUploadError('');
+    if (thumbnailFile && thumbnailFile.size > MAX_THUMBNAIL_MB * 1024 * 1024) {
+      setUploadError(`Thumbnail must be under ${MAX_THUMBNAIL_MB}MB`);
+      return;
+    }
+
     setCreating(true);
-    const { data: inserted, error } = await supabase
-      .from('courses')
-      .insert({
-        title: form.title,
-        description: form.description || null,
-        author_name: form.author_name,
-        course_type: form.course_type,
-        thumbnail_url: form.thumbnail_url || null,
-        language: form.language || 'en_US',
-      })
-      .select()
-      .single();
-    setCreating(false);
-    if (!error && inserted) {
+    try {
+      let finalThumbnailUrl = form.thumbnail_url || null;
+
+      if (thumbnailFile) {
+        const ext = thumbnailFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `course-thumbnails/${generatePath()}.${ext}`;
+        finalThumbnailUrl = await uploadFile(THUMBNAIL_BUCKET, path, thumbnailFile);
+      }
+
+      const { data: inserted, error } = await supabase
+        .from('courses')
+        .insert({
+          title: form.title,
+          description: form.description || null,
+          author_name: form.author_name,
+          course_type: form.course_type,
+          thumbnail_url: finalThumbnailUrl,
+          language: form.language || 'en_US',
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
       setForm({ title: '', description: '', author_name: '', course_type: 'VIDEO', thumbnail_url: '', language: 'en_US' });
+      setThumbnailFile(null);
+      if (thumbnailInputRef.current) thumbnailInputRef.current.value = '';
       setList((prev) => [inserted, ...prev]);
+    } catch (err) {
+      setUploadError(err?.message || 'Failed to create course');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -92,21 +141,48 @@ export default function Courses() {
   const addVideo = async (e) => {
     e.preventDefault();
     if (!selectedCourseId) return;
+    setVideoUploadError('');
+
+    if (!videoForm.video_url && !videoFile) {
+      setVideoUploadError('Please select a video file or provide a URL.');
+      return;
+    }
+    if (videoFile && videoFile.size > MAX_VIDEO_MB * 1024 * 1024) {
+      setVideoUploadError(`Video must be under ${MAX_VIDEO_MB}MB`);
+      return;
+    }
+
     setVideoCreating(true);
-    const { data: inserted, error } = await supabase
-      .from('videos')
-      .insert({
-        course_id: selectedCourseId,
-        title: videoForm.title || null,
-        video_url: videoForm.video_url,
-        episodenumber: parseInt(videoForm.episodenumber, 10) || 1,
-      })
-      .select()
-      .single();
-    setVideoCreating(false);
-    if (!error && inserted) {
+    try {
+      let finalVideoUrl = videoForm.video_url;
+
+      if (videoFile) {
+        const ext = videoFile.name.split('.').pop()?.toLowerCase() || 'mp4';
+        const path = `course-videos/${generatePath()}.${ext}`;
+        finalVideoUrl = await uploadFile(VIDEO_BUCKET, path, videoFile);
+      }
+
+      const { data: inserted, error } = await supabase
+        .from('videos')
+        .insert({
+          course_id: selectedCourseId,
+          title: videoForm.title || null,
+          video_url: finalVideoUrl,
+          episodenumber: parseInt(videoForm.episodenumber, 10) || 1,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
       setVideoForm({ title: '', video_url: '', episodenumber: videos.length + 1 });
+      setVideoFile(null);
+      if (videoInputRef.current) videoInputRef.current.value = '';
       setVideos((prev) => [...prev, inserted].sort((a, b) => a.episodenumber - b.episodenumber));
+    } catch (err) {
+      setVideoUploadError(err?.message || 'Failed to add video');
+    } finally {
+      setVideoCreating(false);
     }
   };
 
@@ -169,12 +245,21 @@ export default function Courses() {
               <option value="TEXT">TEXT</option>
               <option value="MIXED">MIXED</option>
             </select>
-            <label>Thumbnail URL</label>
+            <label>Thumbnail Image <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional, max {MAX_THUMBNAIL_MB}MB)</span></label>
+            <input
+              ref={thumbnailInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+              onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
+            />
+            {thumbnailFile && <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Selected: {thumbnailFile.name}</p>}
+            <label>Thumbnail URL Fallback <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(if not uploading file)</span></label>
             <input
               value={form.thumbnail_url}
               onChange={(e) => setForm({ ...form, thumbnail_url: e.target.value })}
               placeholder="https://..."
             />
+            {uploadError && <p className="error-msg">{uploadError}</p>}
             <button type="submit" className="btn btn-primary" disabled={creating}>
               {creating ? 'Creating…' : 'Create course'}
             </button>
@@ -259,13 +344,23 @@ export default function Courses() {
                 placeholder="Video title"
               />
             </label>
+            <label style={{ gridColumn: '1 / -1' }}>
+              Video File <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional, max {MAX_VIDEO_MB}MB)</span>
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept=".mp4,.mkv,.webm,.mov,video/mp4,video/webm,video/quicktime"
+                onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                style={{ marginTop: '0.5rem' }}
+              />
+              {videoFile && <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Selected: {videoFile.name}</p>}
+            </label>
             <label>
-              Video URL
+              Video URL Fallback <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(if not uploading)</span>
               <input
                 value={videoForm.video_url}
                 onChange={(e) => setVideoForm({ ...videoForm, video_url: e.target.value })}
                 placeholder="https://youtube.com/..."
-                required
               />
             </label>
             <label>
@@ -280,6 +375,7 @@ export default function Courses() {
             <button type="submit" className="btn btn-primary" disabled={videoCreating}>
               {videoCreating ? 'Adding…' : 'Add video'}
             </button>
+            {videoUploadError && <p className="error-msg" style={{ gridColumn: '1 / -1' }}>{videoUploadError}</p>}
           </form>
           {videosLoading ? (
             <div className="loading">Loading videos…</div>
