@@ -69,7 +69,7 @@ export default function Shorts() {
         }
         const ext = videoFile.name.split('.').pop();
         const path = `shorts_${generatePath()}.${ext}`;
-        videoUrl = await uploadFile('shorts', path, videoFile);
+        videoUrl = await uploadFile('assets', path, videoFile);
       }
 
       let thumbnailUrl = form.thumbnail_url;
@@ -79,7 +79,7 @@ export default function Shorts() {
         }
         const ext = coverFile.name.split('.').pop();
         const path = `short_covers_${generatePath()}.${ext}`;
-        thumbnailUrl = await uploadFile('thumbnails', path, coverFile);
+        thumbnailUrl = await uploadFile('assets', path, coverFile);
       }
 
       if (!videoUrl) {

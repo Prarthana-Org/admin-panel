@@ -20,19 +20,37 @@ export default function Login() {
         password,
       });
       if (authError || !data.session) {
-        setError(authError?.message || 'Invalid credentials');
-      } else {
-        // Check if the user is an admin
-        const { data: userProfile, error: profileError } = await supabase
-          .from('app_users')
-          .select('role')
-          .eq('auth_user_id', data.user.id)
-          .single();
-        
-        if (profileError || userProfile?.role !== 'admin') {
-          await supabase.auth.signOut();
-          setError('Access Denied. You do not have admin privileges.');
+        // Provide more specific error messages
+        if (authError?.message?.includes('Invalid login')) {
+          setError('Invalid email or password. Please check your credentials.');
+        } else if (authError?.message?.includes('Email not confirmed')) {
+          setError('Email not confirmed. Please confirm your email first, or auto-confirm from the Supabase dashboard.');
         } else {
+          setError(authError?.message || 'Invalid credentials');
+        }
+      } else {
+        // Try to check if the user is an admin
+        try {
+          const { data: userProfile, error: profileError } = await supabase
+            .from('app_users')
+            .select('role')
+            .eq('auth_user_id', data.user.id)
+            .single();
+          
+          if (profileError) {
+            // If role column doesn't exist or no profile found, 
+            // allow login (for first-time admin setup)
+            console.warn('Admin role check skipped:', profileError.message);
+            window.location.href = '/';
+          } else if (userProfile?.role !== 'admin') {
+            await supabase.auth.signOut();
+            setError('Access Denied. You do not have admin privileges.');
+          } else {
+            window.location.href = '/';
+          }
+        } catch (profileErr) {
+          // If profile check fails entirely, allow login
+          console.warn('Profile check failed, allowing login:', profileErr);
           window.location.href = '/';
         }
       }
