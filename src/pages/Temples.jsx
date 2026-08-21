@@ -15,8 +15,9 @@ export default function Temples() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [activeLang, setActiveLang] = useState('en_US');
   const [languageFilter, setLanguageFilter] = useState('');
-  const [form, setForm] = useState({ name: '', thumbnail_url: '', latitude: '', longitude: '', language: 'en_US' });
+  const [form, setForm] = useState({ name: '', name_translations: {}, thumbnail_url: '', latitude: '', longitude: '', language: 'en_US' });
 
   const loadTemples = async () => {
     setLoading(true);
@@ -41,6 +42,7 @@ export default function Temples() {
       .from('temples')
       .insert({
         name: form.name,
+        name_translations: form.name_translations,
         thumbnail_url: form.thumbnail_url || null,
         latitude: form.latitude ? parseFloat(form.latitude) : null,
         longitude: form.longitude ? parseFloat(form.longitude) : null,
@@ -50,7 +52,7 @@ export default function Temples() {
       .single();
     setCreating(false);
     if (!error && inserted) {
-      setForm({ name: '', thumbnail_url: '', latitude: '', longitude: '', language: 'en_US' });
+      setForm({ name: '', name_translations: {}, thumbnail_url: '', latitude: '', longitude: '', language: 'en_US' });
       setList((prev) => [inserted, ...prev]);
     }
   };
@@ -72,12 +74,23 @@ export default function Temples() {
         <section className="card">
           <h2 className="card-title">Add temple</h2>
           <form onSubmit={create} className="form">
-            <label>Name</label>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+              {LANGUAGES.map(l => (
+                <button type="button" key={l.value} onClick={() => setActiveLang(l.value)} className={`btn btn-sm ${activeLang === l.value ? 'btn-primary' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                  {l.label}
+                </button>
+              ))}
+            </div>
+
+            <label>Name ({LANGUAGES.find(l => l.value === activeLang)?.label})</label>
             <input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              value={activeLang === 'en_US' ? form.name : (form.name_translations[activeLang] || '')}
+              onChange={(e) => {
+                if (activeLang === 'en_US') setForm({ ...form, name: e.target.value });
+                else setForm({ ...form, name_translations: { ...form.name_translations, [activeLang]: e.target.value } });
+              }}
               placeholder="Temple name"
-              required
+              required={activeLang === 'en_US'}
             />
             <label>Thumbnail URL</label>
             <input

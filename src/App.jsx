@@ -11,6 +11,10 @@ import Users from './pages/Users';
 import Shorts from './pages/Shorts';
 import LiveStreams from './pages/LiveStreams';
 import Notifications from './pages/Notifications';
+import Library from './pages/Library';
+import Events from './pages/Events';
+
+import Translations from './pages/Translations';
 
 function App() {
   const { session, loading } = useAuth();
@@ -39,6 +43,9 @@ function App() {
           <Route path="live-streams" element={<LiveStreams />} />
           <Route path="users" element={<Users />} />
           <Route path="notifications" element={<Notifications />} />
+          <Route path="library" element={<Library />} />
+          <Route path="events" element={<Events />} />
+          <Route path="translations" element={<Translations />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

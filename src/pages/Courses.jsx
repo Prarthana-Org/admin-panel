@@ -25,6 +25,7 @@ export default function Courses() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [languageFilter, setLanguageFilter] = useState('');
+  const [activeLang, setActiveLang] = useState('en_US');
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [videos, setVideos] = useState([]);
   const [videosLoading, setVideosLoading] = useState(false);
@@ -37,10 +38,12 @@ export default function Courses() {
   const thumbnailInputRef = useRef(null);
   const videoInputRef = useRef(null);
 
-  const [videoForm, setVideoForm] = useState({ title: '', video_url: '', episodenumber: 1 });
+  const [videoForm, setVideoForm] = useState({ title: '', title_translations: {}, description: '', description_translations: {}, video_url: '', episodenumber: 1 });
   const [form, setForm] = useState({
     title: '',
+    title_translations: {},
     description: '',
+    description_translations: {},
     author_name: '',
     course_type: 'VIDEO',
     thumbnail_url: '',
@@ -109,7 +112,9 @@ export default function Courses() {
         .from('courses')
         .insert({
           title: form.title,
+          title_translations: form.title_translations,
           description: form.description || null,
+          description_translations: form.description_translations,
           author_name: form.author_name,
           course_type: form.course_type,
           thumbnail_url: finalThumbnailUrl,
@@ -120,7 +125,7 @@ export default function Courses() {
       
       if (error) throw error;
       
-      setForm({ title: '', description: '', author_name: '', course_type: 'VIDEO', thumbnail_url: '', language: 'en_US' });
+      setForm({ title: '', title_translations: {}, description: '', description_translations: {}, author_name: '', course_type: 'VIDEO', thumbnail_url: '', language: 'en_US' });
       setThumbnailFile(null);
       if (thumbnailInputRef.current) thumbnailInputRef.current.value = '';
       setList((prev) => [inserted, ...prev]);
@@ -167,6 +172,9 @@ export default function Courses() {
         .insert({
           course_id: selectedCourseId,
           title: videoForm.title || null,
+          title_translations: videoForm.title_translations,
+          description: videoForm.description || null,
+          description_translations: videoForm.description_translations,
           video_url: finalVideoUrl,
           episodenumber: parseInt(videoForm.episodenumber, 10) || 1,
         })
@@ -175,7 +183,7 @@ export default function Courses() {
 
       if (error) throw error;
 
-      setVideoForm({ title: '', video_url: '', episodenumber: videos.length + 1 });
+      setVideoForm({ title: '', title_translations: {}, description: '', description_translations: {}, video_url: '', episodenumber: videos.length + 1 });
       setVideoFile(null);
       if (videoInputRef.current) videoInputRef.current.value = '';
       setVideos((prev) => [...prev, inserted].sort((a, b) => a.episodenumber - b.episodenumber));
@@ -205,17 +213,31 @@ export default function Courses() {
         <section className="card">
           <h2 className="card-title">Add course</h2>
           <form onSubmit={create} className="form">
-            <label>Title</label>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+              {LANGUAGES.map(l => (
+                <button type="button" key={l.value} onClick={() => setActiveLang(l.value)} className={`btn btn-sm ${activeLang === l.value ? 'btn-primary' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                  {l.label}
+                </button>
+              ))}
+            </div>
+
+            <label>Title ({LANGUAGES.find(l => l.value === activeLang)?.label})</label>
             <input
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              value={activeLang === 'en_US' ? form.title : (form.title_translations[activeLang] || '')}
+              onChange={(e) => {
+                if (activeLang === 'en_US') setForm({ ...form, title: e.target.value });
+                else setForm({ ...form, title_translations: { ...form.title_translations, [activeLang]: e.target.value } });
+              }}
               placeholder="Course title"
-              required
+              required={activeLang === 'en_US'}
             />
-            <label>Description</label>
+            <label>Description ({LANGUAGES.find(l => l.value === activeLang)?.label})</label>
             <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              value={activeLang === 'en_US' ? form.description : (form.description_translations[activeLang] || '')}
+              onChange={(e) => {
+                if (activeLang === 'en_US') setForm({ ...form, description: e.target.value });
+                else setForm({ ...form, description_translations: { ...form.description_translations, [activeLang]: e.target.value } });
+              }}
               placeholder="Brief description"
               rows={3}
             />
@@ -337,11 +359,25 @@ export default function Courses() {
           </h2>
           <form onSubmit={addVideo} className="form" style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '1rem', alignItems: 'end' }}>
             <label>
-              Title
+              Title ({LANGUAGES.find(l => l.value === activeLang)?.label})
               <input
-                value={videoForm.title}
-                onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
+                value={activeLang === 'en_US' ? videoForm.title : (videoForm.title_translations[activeLang] || '')}
+                onChange={(e) => {
+                  if (activeLang === 'en_US') setVideoForm({ ...videoForm, title: e.target.value });
+                  else setVideoForm({ ...videoForm, title_translations: { ...videoForm.title_translations, [activeLang]: e.target.value } });
+                }}
                 placeholder="Video title"
+              />
+            </label>
+            <label>
+              Description ({LANGUAGES.find(l => l.value === activeLang)?.label})
+              <input
+                value={activeLang === 'en_US' ? (videoForm.description || '') : (videoForm.description_translations[activeLang] || '')}
+                onChange={(e) => {
+                  if (activeLang === 'en_US') setVideoForm({ ...videoForm, description: e.target.value });
+                  else setVideoForm({ ...videoForm, description_translations: { ...videoForm.description_translations, [activeLang]: e.target.value } });
+                }}
+                placeholder="Video description"
               />
             </label>
             <label style={{ gridColumn: '1 / -1' }}>

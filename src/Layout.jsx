@@ -35,6 +35,9 @@ export default function Layout() {
         <NavLink to="/live-streams">Live Streams</NavLink>
         <NavLink to="/users">Users</NavLink>
         <NavLink to="/notifications">Notifications</NavLink>
+        <NavLink to="/library">Library</NavLink>
+        <NavLink to="/events">Events</NavLink>
+        <NavLink to="/translations">Translations</NavLink>
         <span className="spacer" />
         <button 
           type="button" 
